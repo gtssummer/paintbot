@@ -1,0 +1,122 @@
+const tg = window.Telegram?.WebApp;
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+const colorInput = document.getElementById('color');
+const sizeInput = document.getElementById('size');
+const brushSelect = document.getElementById('brush');
+const eraser = document.getElementById('eraser');
+const clearBtn = document.getElementById('clear');
+const saveBtn = document.getElementById('save');
+
+let drawing = false;
+let lastX = 0, lastY = 0;
+
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = Math.floor(rect.width * dpr);
+  canvas.height = Math.floor(rect.height * dpr);
+  ctx.scale(dpr, dpr);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = colorInput.value;
+  ctx.lineWidth = parseInt(sizeInput.value, 10);
+}
+
+function setComposite() {
+  ctx.globalCompositeOperation = eraser.checked ? 'destination-out' : 'source-over';
+}
+
+function setBrush() {
+  const brush = brushSelect.value;
+  if (brush === 'round') {
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+  } else {
+    ctx.lineCap = 'butt';
+    ctx.lineJoin = 'miter';
+  }
+}
+
+function startDraw(x, y) {
+  drawing = true; lastX = x; lastY = y;
+}
+
+function draw(x, y) {
+  if (!drawing) return;
+  setComposite();
+  setBrush();
+  ctx.strokeStyle = colorInput.value;
+  ctx.lineWidth = parseInt(sizeInput.value, 10);
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+  lastX = x; lastY = y;
+}
+
+function stopDraw() { drawing = false; }
+
+// mouse
+canvas.addEventListener('mousedown', (e) => startDraw(e.offsetX, e.offsetY));
+canvas.addEventListener('mousemove', (e) => draw(e.offsetX, e.offsetY));
+window.addEventListener('mouseup', stopDraw);
+
+// touch
+canvas.addEventListener('touchstart', (e) => {
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  startDraw(t.clientX - rect.left, t.clientY - rect.top);
+}, { passive: true });
+canvas.addEventListener('touchmove', (e) => {
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  draw(t.clientX - rect.left, t.clientY - rect.top);
+}, { passive: true });
+window.addEventListener('touchend', stopDraw);
+
+// resize
+window.addEventListener('resize', () => {
+  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  resizeCanvas();
+  ctx.putImageData(img, 0, 0);
+});
+resizeCanvas();
+
+clearBtn.addEventListener('click', () => {
+  if (confirm('Точно очистить холст?')) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+});
+
+async function saveImage() {
+  const dataUrl = canvas.toDataURL('image/png');
+  const payload = {
+    image_data: dataUrl,
+    brush: brushSelect.value,
+    size: parseInt(sizeInput.value, 10),
+    color: colorInput.value
+  };
+  try {
+    const r = await fetch('/api/upload', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const json = await r.json();
+    if (json.ok) {
+      alert('Сохранено!');
+      if (tg) tg.HapticFeedback?.notificationOccurred('success');
+    } else {
+      alert('Ошибка сохранения');
+    }
+  } catch (e) {
+    alert('Не удалось сохранить: ' + e);
+  }
+}
+
+saveBtn.addEventListener('click', saveImage);
+
+if (tg) {
+  tg.expand();
+}

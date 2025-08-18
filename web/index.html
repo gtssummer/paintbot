@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Мини‑Пейнт</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>🎨 Мини‑Пейнт</h1>
+      <button id="clear">Очистить</button>
+    </header>
+
+    <section class="toolbar">
+      <label>Цвет: <input type="color" id="color" value="#000000"/></label>
+      <label>Толщина: <input type="range" id="size" min="1" max="60" value="8"/></label>
+      <label>Кисть:
+        <select id="brush">
+          <option value="round">Круглая</option>
+          <option value="square">Квадратная</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="eraser"/> Ластик</label>
+      <button id="save">Сохранить</button>
+    </section>
+
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
