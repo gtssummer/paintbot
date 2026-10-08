@@ -1,7 +1,7 @@
 // Builds "History of My University: 1931-1940" (MOPI) as a .pptx.
 // Usage: node build_deck.js [out.pptx]
-// Photo frames are real PowerPoint picture placeholders: click the icon in a
-// frame to insert a photo, PowerPoint crops it to fill the frame.
+// Photos come from photos/ (run prep_photos.py first). A slide whose photo is
+// missing gets a PowerPoint picture placeholder instead: click its icon to add one.
 const path = require("path");
 const pptxgen = require("pptxgenjs");
 const { applyTheme } = require(process.env.APPLY_THEME || "./apply_theme.js");
@@ -63,7 +63,8 @@ const footer = (x, w, dark) => ({
 });
 const num = (x, dark) => ({ x, y: 6.9, w: 0.5, h: 0.3, fontSize: 10, color: dark ? C.accent1 : C.text2, align: "right", valign: "middle", margin: 0 });
 
-pres.defineSlideMaster({ title: "Title", background: { color: C.text1 }, objects: [...photo(6.6, 0, 6.733, 7.5, true), title(0.7, 5.7, C.background1, 1.6, 2.0)] });
+pres.defineSlideMaster({ title: "Title", background: { color: C.text1 }, objects: [title(0.7, 6.2, C.background1, 1.6, 2.0)] });
+pres.defineSlideMaster({ title: "Blush Left", background: { color: C.background1 }, objects: [{ rect: { x: 0, y: 0, w: 5.0, h: 7.5, fill: { color: C.background2 } } }, title(5.7, 7.0), footer(5.7, 5)], slideNumber: num(12.13) });
 pres.defineSlideMaster({ title: "Photo Left", background: { color: C.background1 }, objects: [...photo(0, 0, 5.0, 7.5), title(5.7, 7.0), footer(5.7, 5)], slideNumber: num(12.13) });
 pres.defineSlideMaster({ title: "Photo Right", background: { color: C.background1 }, objects: [...photo(8.6, 0, 4.733, 7.5), title(0.7, 7.4), footer(0.7, 5)], slideNumber: num(7.6) });
 pres.defineSlideMaster({ title: "Photo Diagonal", background: { color: C.background1 }, objects: [...photo(6.4, 0, 6.933, 7.5), title(0.7, 5.6), footer(0.7, 5)], slideNumber: num(5.3) });
@@ -83,13 +84,28 @@ const T = (slide, text, opts) => slide.addText(text, { isTextBox: true, margin: 
 const addPhoto = (slide, dark) => slide.addText("", { placeholder: "photo", fill: { color: dark ? C.accent5 : C.accent3 } });
 const label = (slide, text, x, y, w, color) => T(slide, text, { x, y, w, h: 0.3, fontSize: 11, bold: true, charSpacing: 3, color: color || C.accent2 });
 
+// ---------- photos (prepared by prep_photos.py) ----------
+const fs = require("fs");
+const PHOTO_DIR = path.join(__dirname, "photos");
+const has = (f) => fs.existsSync(path.join(PHOTO_DIR, f));
+const img = (slide, f, x, y, w, h, extra = {}) => slide.addImage({ path: path.join(PHOTO_DIR, f), x, y, w, h, altText: extra.alt || "", objectName: extra.name || f });
+// Caption sitting on a photo: dark translucent strip with small white text.
+const photoCaption = (slide, text, x, y, w) => {
+  slide.addShape(pres.shapes.RECTANGLE, { x, y, w, h: 0.42, fill: { color: C.text1, transparency: 25 }, line: { color: C.text1, width: 0, transparency: 100 }, objectName: "Caption strip" });
+  T(slide, text, { x: x + 0.15, y, w: w - 0.3, h: 0.42, fontSize: 11, italic: true, color: C.background1, valign: "middle" });
+};
+const caption = (slide, text, x, y, w, color) => T(slide, text, { x, y, w, h: 0.5, fontSize: 11, italic: true, color: color || C.text2 });
+
 pres.addSection({ title: "Introduction" });
 
-// 1 — Title
+// 1 — Title (London style: photo in an arch on a dark ground)
 {
   const s = pres.addSlide({ masterName: "Title", sectionTitle: "Introduction" });
-  addPhoto(s, true);
-  label(s, "MOSCOW REGIONAL PEDAGOGICAL INSTITUTE", 0.7, 0.8, 5.6, C.accent1);
+  if (has("title_arch.png")) {
+    img(s, "title_arch_outline.png", 6.95, 0.25, 5.7, 7.0, { name: "Arch outline" });
+    img(s, "title_arch.png", 7.2, 0.5, 5.2, 6.4, { name: "MOPI building", alt: "Archive photo of the first and main pre-war MOPI building, Moscow, Podsosensky Lane, 20" });
+  }
+  label(s, "MOSCOW REGIONAL PEDAGOGICAL INSTITUTE", 0.7, 0.8, 6.0, C.accent1);
   s.addText("HISTORY OF\nMY UNIVERSITY", { placeholder: "title", fontSize: 46, charSpacing: 2 });
   T(s, "1931 – 1940", { x: 0.7, y: 3.55, w: 5.5, h: 0.9, fontFace: SCRIPT, fontSize: 34, color: C.accent1 });
   label(s, "PRESENTED BY", 0.7, 5.0, 5.6, C.accent1);
@@ -101,8 +117,12 @@ const SEC = "The First Decade";
 
 // 2 — How It All Began
 {
-  const s = pres.addSlide({ masterName: "Photo Left", sectionTitle: SEC });
-  addPhoto(s);
+  const s = pres.addSlide({ masterName: "Blush Left", sectionTitle: SEC });
+  if (has("diploma.jpg")) {
+    s.addShape(pres.shapes.RECTANGLE, { x: 0.45, y: 2.05, w: 4.1, h: 2.97, fill: { color: C.background1 }, line: { color: C.background1, width: 0 }, shadow: { type: "outer", color: "5E5459", opacity: 0.25, blur: 10, offset: 4, angle: 90 }, objectName: "Diploma mat" });
+    img(s, "diploma.jpg", 0.55, 2.15, 3.9, 2.77, { name: "Diploma 1931", alt: "MOPI diploma, 1931" });
+    caption(s, "MOPI diploma, 1931", 0.45, 5.2, 4.1);
+  }
   T(s, "1931", { x: 5.7, y: 0.05, w: 7.1, h: 2.2, fontFace: THEME.headFontFace, fontSize: 150, color: C.background2, align: "right", objectName: "Decor 1931" });
   s.addText("How It All Began", { placeholder: "title" });
   label(s, "THE BEGINNING", 5.7, 1.75, 7.0);
@@ -118,27 +138,31 @@ const SEC = "The First Decade";
   label(s, "LEADERSHIP  ·  1931–1941", 0.55, 6.35, 3.8, C.background1);
   s.addText("Directors of MOPI", { placeholder: "title" });
   T(s, "The leadership changed quite often, which reflected the difficult political times.", { x: 5.3, y: 1.5, w: 7.3, h: 0.8, fontSize: 16, italic: true, color: C.text2 });
-  s.addShape(pres.shapes.LINE, { x: 5.45, y: 2.75, w: 0, h: 3.0, line: { color: C.accent3, width: 1.5 }, objectName: "Timeline" });
   const rows = [
-    ["1931", "Afanasy Vasilyevich Shulgin", "first director"],
-    ["1935–1936", "A. A. Savrasova", ""],
-    ["1938–1941", "D. A. Allakhverdyan", ""],
+    ["shulgin", "1931", "Afanasy Vasilyevich Shulgin", "first director"],
+    ["savrasova", "1935–1936", "A. A. Savrasova", ""],
+    ["allakhverdyan", "1938–1941", "D. A. Allakhverdyan", ""],
   ];
-  rows.forEach(([yr, name, note], i) => {
-    const y = 2.6 + i * 1.3;
-    s.addShape(pres.shapes.OVAL, { x: 5.33, y: y + 0.14, w: 0.24, h: 0.24, fill: { color: C.accent2 }, line: { color: C.background1, width: 2 }, objectName: `Timeline dot ${i + 1}` });
-    T(s, yr, { x: 5.85, y, w: 2.5, h: 0.55, fontFace: THEME.headFontFace, fontSize: 28, color: C.accent2 });
-    T(s, name, { x: 8.4, y: y + 0.08, w: 4.4, h: 0.4, fontSize: 18, bold: true, color: C.text1 });
-    if (note) T(s, note, { x: 8.4, y: y + 0.5, w: 4.4, h: 0.35, fontSize: 14, italic: true, color: C.text2 });
+  rows.forEach(([key, yr, name, note], i) => {
+    const y = 2.4 + i * 1.42;
+    if (has(`dir_${key}.jpg`)) img(s, `dir_${key}.jpg`, 5.3, y, 0.95, 1.25, { name: `Portrait ${name}`, alt: name });
+    T(s, yr, { x: 6.55, y: y + 0.3, w: 2.2, h: 0.55, fontFace: THEME.headFontFace, fontSize: 26, color: C.accent2 });
+    T(s, name, { x: 8.75, y: y + 0.36, w: 4.1, h: 0.4, fontSize: 18, bold: true, color: C.text1 });
+    if (note) T(s, note, { x: 8.75, y: y + 0.78, w: 4.1, h: 0.35, fontSize: 14, italic: true, color: C.text2 });
   });
 }
 
 // 4 — First Faculties
 {
   const s = pres.addSlide({ masterName: "Photo Diagonal", sectionTitle: SEC });
-  addPhoto(s);
+  const chem = has("faculties_chem1931.jpg");
+  if (chem) img(s, "faculties_chem1931.jpg", 6.4, 0, 6.933, 7.5, { alt: "Chemistry students of the first MOPI intake, 1931" });
+  else if (has("faculties_group1933.jpg")) img(s, "faculties_group1933.jpg", 6.4, 0, 6.933, 7.5, { alt: "Group A, 2nd year, Literature faculty of MOPI, 1933" });
+  else addPhoto(s);
   s.addShape(pres.shapes.RIGHT_TRIANGLE, { x: 6.39, y: -0.01, w: 2.3, h: 7.52, flipV: true, fill: { color: C.background1 }, line: { color: C.background1, width: 0 }, objectName: "Diagonal cut" });
   s.addShape(pres.shapes.LINE, { x: 6.55, y: 0, w: 2.2, h: 7.5, flipH: true, line: { color: C.accent1, width: 3 }, objectName: "Diagonal line" });
+  if (chem) photoCaption(s, "Chemistry students of the first MOPI intake, 1931", 8.6, 6.75, 4.73);
+  else if (has("faculties_group1933.jpg")) photoCaption(s, "Group A, 2nd year, Literature faculty, 1933", 8.6, 6.75, 4.73);
   s.addText("First Faculties", { placeholder: "title" });
   T(s, "At the start, the institute had three faculties:", { x: 0.7, y: 1.5, w: 5.6, h: 0.4, fontSize: 16, color: C.text2 });
   const fac = [["Social and Literary", "with a history department"], ["Physics and Mathematics", ""], ["Chemistry and Technology", ""]];
@@ -159,35 +183,51 @@ const SEC = "The First Decade";
 // 5 — Growth in 1932–1935
 {
   const s = pres.addSlide({ masterName: "Title Only", sectionTitle: SEC });
-  T(s, "1932", { x: 6.0, y: 0.05, w: 6.9, h: 2.0, fontFace: THEME.headFontFace, fontSize: 130, color: C.background2, align: "right", objectName: "Decor 1932" });
+  const photo5 = has("growth_uzboy.jpg");
+  if (!photo5) T(s, "1932", { x: 6.0, y: 0.05, w: 6.9, h: 2.0, fontFace: THEME.headFontFace, fontSize: 130, color: C.background2, align: "right", objectName: "Decor 1932" });
   s.addText("Growth in 1932–1935", { placeholder: "title" });
   T(s, "The institute grew quickly.", { x: 0.7, y: 1.45, w: 7, h: 0.4, fontSize: 16, italic: true, color: C.text2 });
   label(s, "BY 1933 — SIX FULL-TIME FACULTIES", 0.7, 2.15, 6.7);
-  ["Literature", "Geography", "Physics", "Chemistry", "Economics", "History"].forEach((f, i) => {
-    const x = 0.7 + (i % 3) * 2.3, y = 2.6 + Math.floor(i / 3) * 1.85;
-    s.addShape(pres.shapes.RECTANGLE, { x, y, w: 2.1, h: 1.65, fill: { color: C.background2 }, line: { color: C.background2, width: 0 }, objectName: `Faculty ${f}` });
-    T(s, `0${i + 1}`, { x: x + 0.2, y: y + 0.18, w: 1, h: 0.35, fontFace: THEME.headFontFace, fontSize: 16, color: C.accent2 });
-    T(s, f, { x: x + 0.2, y: y + 1.0, w: 1.8, h: 0.45, fontFace: THEME.headFontFace, fontSize: 20, color: C.text1 });
-  });
+  const faculties = ["Literature", "Geography", "Physics", "Chemistry", "Economics", "History"];
   const cards = [
     ["1932", "Correspondence department opened", "People could become teachers without leaving their jobs."],
     ["22", "First graduates, 1934/35", "All from the History faculty — the number was small because the university was still very young."],
   ];
-  cards.forEach(([big, head, body], i) => {
-    const y = 2.15 + i * 2.15;
-    s.addShape(pres.shapes.RECTANGLE, { x: 7.95, y, w: 4.68, h: 1.95, fill: { color: C.accent2 }, line: { color: C.accent2, width: 0 }, objectName: `Growth card ${i + 1}` });
-    T(s, big, { x: 8.25, y: y + 0.18, w: 1.5, h: 0.75, fontFace: THEME.headFontFace, fontSize: 40, color: C.background1 });
-    T(s, head, { x: 9.75, y: y + 0.3, w: 2.7, h: 0.6, fontSize: 15, bold: true, color: C.background1, valign: "middle" });
-    T(s, body, { x: 8.25, y: y + 1.0, w: 4.15, h: 0.85, fontSize: 14, color: C.background1 });
-  });
+  if (photo5) {
+    faculties.forEach((f, i) => {
+      const x = 0.7 + (i % 3) * 2.3, y = 2.55 + Math.floor(i / 3) * 1.0;
+      s.addShape(pres.shapes.RECTANGLE, { x, y, w: 2.1, h: 0.85, fill: { color: C.background2 }, line: { color: C.background2, width: 0 }, objectName: `Faculty ${f}` });
+      T(s, `0${i + 1}`, { x: x + 0.18, y, w: 0.5, h: 0.85, fontFace: THEME.headFontFace, fontSize: 14, color: C.accent2, valign: "middle" });
+      T(s, f, { x: x + 0.62, y, w: 1.45, h: 0.85, fontFace: THEME.headFontFace, fontSize: 17, color: C.text1, valign: "middle" });
+    });
+    cards.forEach(([big, head, body], i) => {
+      const x = 0.7 + i * 3.45;
+      s.addShape(pres.shapes.RECTANGLE, { x, y: 4.7, w: 3.25, h: 1.85, fill: { color: C.accent2 }, line: { color: C.accent2, width: 0 }, objectName: `Growth card ${i + 1}` });
+      T(s, big, { x: x + 0.2, y: 4.8, w: 1.15, h: 0.6, fontFace: THEME.headFontFace, fontSize: 30, color: C.background1, valign: "middle" });
+      T(s, head, { x: x + 1.35, y: 4.8, w: 1.8, h: 0.6, fontSize: 13, bold: true, color: C.background1, valign: "middle" });
+      T(s, body, { x: x + 0.2, y: 5.5, w: 2.9, h: 1.0, fontSize: 13, color: C.background1 });
+    });
+    img(s, "growth_uzboy.jpg", 7.95, 1.55, 4.68, 3.5, { alt: "MOPI geographical expedition to the Uzboy river (Turkmenistan), early 1930s" });
+    caption(s, "Geographical expedition of MOPI to the Uzboy river (Turkmenistan), early 1930s", 7.95, 5.15, 4.68);
+  } else {
+    faculties.forEach((f, i) => {
+      const x = 0.7 + (i % 3) * 2.3, y = 2.6 + Math.floor(i / 3) * 1.85;
+      s.addShape(pres.shapes.RECTANGLE, { x, y, w: 2.1, h: 1.65, fill: { color: C.background2 }, line: { color: C.background2, width: 0 }, objectName: `Faculty ${f}` });
+      T(s, `0${i + 1}`, { x: x + 0.2, y: y + 0.18, w: 1, h: 0.35, fontFace: THEME.headFontFace, fontSize: 16, color: C.accent2 });
+      T(s, f, { x: x + 0.2, y: y + 1.0, w: 1.8, h: 0.45, fontFace: THEME.headFontFace, fontSize: 20, color: C.text1 });
+    });
+    cards.forEach(([big, head, body], i) => {
+      const y = 2.15 + i * 2.15;
+      s.addShape(pres.shapes.RECTANGLE, { x: 7.95, y, w: 4.68, h: 1.95, fill: { color: C.accent2 }, line: { color: C.accent2, width: 0 }, objectName: `Growth card ${i + 1}` });
+      T(s, big, { x: 8.25, y: y + 0.18, w: 1.5, h: 0.75, fontFace: THEME.headFontFace, fontSize: 40, color: C.background1 });
+      T(s, head, { x: 9.75, y: y + 0.3, w: 2.7, h: 0.6, fontSize: 15, bold: true, color: C.background1, valign: "middle" });
+      T(s, body, { x: 8.25, y: y + 1.0, w: 4.15, h: 0.85, fontSize: 14, color: C.background1 });
+    });
+  }
 }
 
 // 6 — Famous Professors
 {
-  const s = pres.addSlide({ masterName: "Photo Left", sectionTitle: SEC });
-  addPhoto(s);
-  s.addText("Famous Professors", { placeholder: "title" });
-  T(s, "Despite political pressure, MOPI had a strong teaching staff. Famous historians worked here:", { x: 5.7, y: 1.45, w: 7.0, h: 0.65, fontSize: 15, color: C.text2 });
   const profs = [
     ["N. L. Rubinstein", "head of the History of the USSR department"],
     ["B. A. Rybakov", "future academician, worked at MOPI from 1934 to 1952"],
@@ -195,32 +235,51 @@ const SEC = "The First Decade";
     ["B. F. Porshnev", "head of Ancient and Medieval History"],
     ["A. V. Shestakov", "author of a school textbook on USSR history"],
   ];
+  const portraits = has("prof_rubinstein.jpg") && has("prof_porshnev.jpg");
+  const s = pres.addSlide({ masterName: portraits ? "Title Only" : "Photo Left", sectionTitle: SEC });
+  const X = portraits ? 0.7 : 5.7, W = 7.0;
+  if (!portraits) addPhoto(s);
+  s.addText("Famous Professors", { placeholder: "title" });
+  T(s, "Despite political pressure, MOPI had a strong teaching staff. Famous historians worked here:", { x: X, y: 1.45, w: W, h: 0.65, fontSize: 15, color: C.text2 });
   profs.forEach(([n, role], i) => {
     const y = 2.25 + i * 0.68;
-    if (i > 0) s.addShape(pres.shapes.LINE, { x: 5.7, y: y - 0.06, w: 7.0, h: 0, line: { color: C.accent3, width: 0.75 }, objectName: `Row rule ${i}` });
-    T(s, `0${i + 1}`, { x: 5.7, y: y + 0.02, w: 0.6, h: 0.5, fontFace: THEME.headFontFace, fontSize: 22, color: C.accent1 });
-    T(s, n, { x: 6.35, y: y + 0.08, w: 2.45, h: 0.4, fontSize: 16, bold: true, color: C.text1 });
-    T(s, role, { x: 8.85, y: y + 0.05, w: 3.85, h: 0.55, fontSize: 14, color: C.text2 });
+    if (i > 0) s.addShape(pres.shapes.LINE, { x: X, y: y - 0.06, w: W, h: 0, line: { color: C.accent3, width: 0.75 }, objectName: `Row rule ${i}` });
+    T(s, `0${i + 1}`, { x: X, y: y + 0.02, w: 0.6, h: 0.5, fontFace: THEME.headFontFace, fontSize: 22, color: C.accent1 });
+    T(s, n, { x: X + 0.65, y: y + 0.08, w: 2.45, h: 0.4, fontSize: 16, bold: true, color: C.text1 });
+    T(s, role, { x: X + 3.15, y: y + 0.05, w: 3.85, h: 0.55, fontSize: 14, color: C.text2 });
   });
-  T(s, "Students remembered these professors as brilliant teachers.", { x: 5.7, y: 5.85, w: 7.0, h: 0.5, fontFace: THEME.headFontFace, fontSize: 19, italic: true, color: C.accent2 });
+  T(s, "Students remembered these professors as brilliant teachers.", { x: X, y: 5.85, w: W, h: 0.5, fontFace: THEME.headFontFace, fontSize: 19, italic: true, color: C.accent2 });
+  if (portraits) {
+    [["rubinstein", "N. L. Rubinstein"], ["porshnev", "B. F. Porshnev"]].forEach(([k, n], i) => {
+      const x = 8.2 + i * 2.35;
+      img(s, `prof_${k}.jpg`, x, 1.55, 2.1, 2.8, { name: `Portrait ${n}`, alt: n });
+      T(s, n, { x, y: 4.45, w: 2.1, h: 0.35, fontSize: 14, bold: true, color: C.text1 });
+    });
+  }
 }
 
 // 7 — 1937–1939: New Steps
 {
-  const s = pres.addSlide({ masterName: "Photo Right", sectionTitle: SEC });
-  addPhoto(s);
+  const photo7 = has("steps_rybakov.jpg");
+  const s = pres.addSlide({ masterName: photo7 ? "Title Only" : "Photo Right", sectionTitle: SEC });
+  if (!photo7) addPhoto(s);
   s.addText("1937–1939: New Steps", { placeholder: "title" });
   const cols = [
     ["FIRST ACADEMIC JOURNAL", "1937", "Uchyonye Zapiski", "The institute started publishing its own academic journal, “Uchyonye Zapiski.”"],
     ["POSTGRADUATE STUDIES", "1939", "Aspirantura", "Postgraduate studies opened. This was an important step for training young scientists."],
   ];
   cols.forEach(([lab, yr, name, body], i) => {
-    const x = 0.7 + i * 3.85;
-    label(s, lab, x, 1.75, 3.6);
-    T(s, yr, { x, y: 2.05, w: 3.5, h: 1.25, fontFace: THEME.headFontFace, fontSize: 80, color: C.accent1 });
-    T(s, name, { x, y: 3.4, w: 3.5, h: 0.5, fontFace: THEME.headFontFace, fontSize: 24, italic: true, color: C.text1 });
-    T(s, body, { x, y: 4.05, w: 3.45, h: 1.6, fontSize: 16, color: C.text1 });
+    const x = 0.7 + i * (photo7 ? 3.55 : 3.85);
+    const w = photo7 ? 3.3 : 3.5;
+    label(s, lab, x, 1.75, w + 0.1);
+    T(s, yr, { x, y: 2.05, w, h: 1.25, fontFace: THEME.headFontFace, fontSize: 80, color: C.accent1 });
+    T(s, name, { x, y: 3.4, w, h: 0.5, fontFace: THEME.headFontFace, fontSize: 24, italic: true, color: C.text1 });
+    T(s, body, { x, y: 4.05, w: w - 0.05, h: 1.6, fontSize: 16, color: C.text1 });
   });
+  if (photo7) {
+    img(s, "steps_rybakov.jpg", 7.9, 1.75, 4.73, 2.95, { alt: "B. A. Rybakov with MOPI students at archaeological excavations" });
+    caption(s, "B. A. Rybakov with MOPI students at archaeological excavations", 7.9, 4.8, 4.73);
+  }
 }
 
 // 8 — Results of the First Decade
@@ -250,7 +309,10 @@ pres.addSection({ title: "1941" });
 // 9 — 1941: The War Begins
 {
   const s = pres.addSlide({ masterName: "Dark Photo Right", sectionTitle: "1941" });
-  addPhoto(s, true);
+  if (has("war_building.jpg")) {
+    img(s, "war_building.jpg", 7.9, 0, 5.433, 7.5, { alt: "The first and main pre-war MOPI building, Moscow, Podsosensky Lane, 20" });
+    photoCaption(s, "MOPI's main pre-war building, Podsosensky Lane, 20", 7.9, 6.75, 5.433);
+  } else addPhoto(s, true);
   s.addText("1941: The War Begins", { placeholder: "title" });
   T(s, "October 15, 1941", { x: 0.7, y: 1.4, w: 6.5, h: 0.6, fontFace: SCRIPT, fontSize: 24, color: C.accent1 });
   T(s, "Classes stopped. The institute was evacuated. Students marched to Murom, and later professors and teachers were moved to the town of Malmyzh in the Kirov region.", { x: 0.7, y: 2.1, w: 6.8, h: 1.1, fontSize: 16, color: SOFT_WHITE });
@@ -272,7 +334,11 @@ pres.addSection({ title: "1941" });
 // 10 — Closing
 {
   const s = pres.addSlide({ masterName: "Dark Photo Left", sectionTitle: "1941" });
-  addPhoto(s, true);
+  if (has("closing_group1933.jpg")) {
+    img(s, "closing_group1933.jpg", 0, 0, 5.2, 7.5, { alt: "Group A, 2nd year, Literature faculty of MOPI, 1933" });
+    photoCaption(s, "Literature faculty students, 1933", 0, 6.75, 5.2);
+  } else if (has("closing_building.jpg")) img(s, "closing_building.jpg", 0, 0, 5.2, 7.5, { alt: "The first MOPI building, Podsosensky Lane, 20" });
+  else addPhoto(s, true);
   label(s, "TO BE CONTINUED", 5.9, 1.55, 6.7, C.accent1);
   T(s, "But that is already a different page of our history —", { x: 5.9, y: 2.0, w: 6.7, h: 2.1, fontFace: THEME.headFontFace, fontSize: 36, italic: true, color: C.background1 });
   T(s, "the war years.", { x: 5.9, y: 3.7, w: 6.7, h: 1.0, fontFace: SCRIPT, fontSize: 36, color: C.accent1 });
