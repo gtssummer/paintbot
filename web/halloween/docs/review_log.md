@@ -12,8 +12,8 @@ Scores: hook 8 · motion 6 · design 7 · rhythm 6 · retention 5 · finish 6 ·
    phase. Fix: armed during press and fly; disabled only when every team is full.
 3. **P1** Spin tail: the last door passes 3.87 s into the spin, but the latch fires at 5.40 s. That leaves 1.5 s of near
    stillness, and the tension dies. Measured with `tickTimes()`. Fix: retune to `n = 1.3`, `td = 2.5`, a latch that
-   pulls half a slot, and a 0.48 s creep before the latch. The ticks now speed up into the stop
-   (0.10 → 0.30 s apart) with no dead time.
+   pulls half a slot, and a 0.48 s creep before the latch. The ticks now slow down steadily into the stop
+   (0.09 → 0.30 s apart) with no dead time.
 4. **P2** Console view: the doors through the window were cropped, and the side pipes read as extra mullions. The beacon
    was an unreadable blob and the HUD covered the window. A label was clipped at the desk edge.
 5. Determinism: at t = 8 s the HUD highlight leaked from the previous frame. Fix: write `--flash` every frame.
