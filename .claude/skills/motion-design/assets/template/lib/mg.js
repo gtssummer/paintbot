@@ -304,7 +304,7 @@ export function el(tag, props = {}, parent) {
   for (const [k, v] of Object.entries(props)) {
     if (v == null) continue;
     if (k === 'class') n.setAttribute('class', v);
-    else if (k === 'style' && typeof v === 'object') Object.assign(n.style, v);
+    else if (k === 'style' && typeof v === 'object') for (const [sk, sv] of Object.entries(v)) { if (sk.startsWith('--')) n.style.setProperty(sk, sv); else n.style[sk] = sv; }
     else if (k === 'text') n.textContent = v;
     else if (k === 'html') n.innerHTML = v;
     else n.setAttribute(k, v);

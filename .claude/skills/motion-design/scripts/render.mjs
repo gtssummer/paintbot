@@ -11,7 +11,7 @@
 //   node tools/render.mjs inspect [out/final.mp4]       evidence for the critic: metrics + sheets from the video
 //   node tools/render.mjs serve [--port 4173]           preview server for a human (space, ←/→, [ ], G guides)
 //
-// Common flags: --dir <film folder> (default: cwd)  --page index.html  --format 9x16  --from S --to S
+// Common flags: --dir <film folder> (default: cwd)  --outdir <dir> (default: <dir>/out)  --page index.html  --format 9x16  --from S --to S
 //               --fps N  --scale K  --out PATH  --chrome PATH  --audio PATH|none  --crf N  --preset slow
 
 import { spawn, spawnSync } from 'node:child_process';
@@ -41,7 +41,7 @@ function parseArgs(argv) {
 const args = parseArgs(process.argv.slice(2));
 const cmd = args._[0] || 'help';
 const DIR = path.resolve(args.dir || process.cwd());
-const OUT = path.join(DIR, 'out');
+const OUT = path.resolve(args.outdir || path.join(DIR, 'out'));
 const log = (...m) => console.log(...m);
 const die = (m) => { console.error('✗ ' + m); process.exit(1); };
 const num = (v, d) => (v === undefined || v === true ? d : Number(v));
@@ -468,17 +468,23 @@ async function cmdCheck() {
     log('\n2. Determinism (same frame in any order, on any page)');
     const d = film.duration, fps = film.fps, last = d - 1 / fps;
     const ts = [...new Set([0, d * 0.21, d * 0.5, d * 0.77, last, ...film.cuts.flatMap((c) => [c - 1 / fps, c]).slice(0, 8)].map((t) => +Math.min(Math.max(0, t), last).toFixed(4)))];
-    const pass = async (pg, order) => { const h = {}; for (const t of order) { await pg.seek(t); h[t] = sha(await pg.shot('png')); } return h; };
+    const shots = {};
+    const pass = async (pg, order, tag) => { const h = {}; for (const t of order) { await pg.seek(t); const png = await pg.shot('png'); h[t] = sha(png); (shots[t] = shots[t] || {})[tag] = png; } return h; };
     const scale = num(args.scale, 0.5);
     await page.size(film.width, film.height, scale);
-    const asc = await pass(page, ts);
-    const desc = await pass(page, [...ts].reverse());
+    const asc = await pass(page, ts, 'asc');
+    const desc = await pass(page, [...ts].reverse(), 'desc');
     const fresh = (await openFilm(browser, srv, { scale })).page;
     const shuffled = ts.map((t, i) => [t, (i * 7919) % ts.length]).sort((a, b) => a[1] - b[1]).map((x) => x[0]);
-    const shuf = await pass(fresh, shuffled);
+    const shuf = await pass(fresh, shuffled, 'fresh');
     await fresh.close();
     const diffs = ts.filter((t) => asc[t] !== desc[t] || asc[t] !== shuf[t]);
-    if (diffs.length) bad(`frames differ by render order at t = ${diffs.join(', ')} → state leaks between frames: a property not written on every frame/branch, a counter, Math.random, Date/performance.now, timers, rAF, CSS transitions, or an image not yet decoded`);
+    if (diffs.length) {
+      bad(`frames differ by render order at t = ${diffs.join(', ')} → state leaks between frames: a property not written on every frame/branch, a counter, Math.random, Date/performance.now, timers, rAF, CSS transitions, or an image not yet decoded`);
+      const dd = path.join(OUT, 'check'); mkdir(dd);
+      for (const t of diffs) for (const [tag, png] of Object.entries(shots[t])) fs.writeFileSync(path.join(dd, `t${fmtT(t)}-${tag}.png`), png);
+      log(`    the differing frames are in ${dd} (asc / desc / fresh) — compare them to find the leaking element`);
+    }
     else ok(`${ts.length} frames identical across ascending, descending and shuffled renders on two pages`);
 
     log('\n3. Frames');
