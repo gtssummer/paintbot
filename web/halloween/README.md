@@ -30,12 +30,14 @@ Open it at `/static/halloween/index.html` (served by the FastAPI app), or with a
 - `js/main.js` — the director. Every frame is computed from event timestamps and the current time. A roll is planned
   in full at the moment of the press: the fly-through, the spin distances that land a door in the slot, the latch, the
   swing, the reveal and the button ignition. The live app feeds real time. `?capture` feeds a scripted demo
-  through `window.seek(t)` for frame-exact video rendering.
+  through `window.seek(t)` for frame-exact video rendering. A quality governor steps the live app down (grain, blur
+  passes, render scale, far rows) on machines that can't hold ~45 fps.
 - `js/spin.js` — vault geometry and conveyor motion as closed-form functions of time. Rows wrap modulo a loop that is
   wider than the widest camera view (`coverageOK`), so a row can never leave a gap. The speed profile is ease-in,
   cruise, a `(1−u)^1.3` slowdown, then a sprung latch that pulls the last half-slot into place.
-- `js/scene.js` — the vault on one canvas. It has parallax far rows, lamps and cones, rails, true per-row motion blur
-  (additive accumulation in an offscreen buffer), the lock station, and the hero door. The hero door swing is drawn
+- `js/scene.js` — the vault on one canvas. It has parallax far rows, lamps and cones, rails, per-row motion blur
+  (rows drawn once into a padded half-res buffer, then box-blurred along the rail by recursive doubling), the lock
+  station, and the hero door. The hero door swing is drawn
   in perspective from 56 texture strips, with the doorway light, the reveal, light spill, god rays, a shockwave ring,
   a team-colour wave across every door lamp, embers, steam, confetti and sparks.
 - `js/doors.js` — procedural doors: 20 colours, 8 panel layouts, patterns, Halloween decals, knobs, wear.
