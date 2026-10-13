@@ -7,6 +7,11 @@ latches into the centre slot. It swings open to reveal the team number in that t
 Open it at `/static/halloween/index.html` (served by the FastAPI app), or with any static server from this folder:
 `npx http-server web/halloween`, then open `http://localhost:8080`.
 
+## One-file offline copy
+`node tools/build-offline.mjs` writes `dist/halloween-team-randomizer.html`. It's one file with the code, styles and
+fonts inside, so it opens with a double-click on any computer, without a server or internet. Copy it anywhere and open
+it in Chrome, Edge, Firefox or Safari.
+
 ## Controls
 | Action | Mouse / touch | Keyboard |
 |---|---|---|
