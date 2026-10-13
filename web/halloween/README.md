@@ -9,8 +9,8 @@ Open it at `/static/halloween/index.html` (served by the FastAPI app), or with a
 
 ## One-file offline copy
 `node tools/build-offline.mjs` writes `dist/halloween-team-randomizer.html`. It's one file with the code, styles and
-fonts inside, so it opens with a double-click on any computer, without a server or internet. Copy it anywhere and open
-it in Chrome, Edge, Firefox or Safari.
+fonts inside, so it opens with a double-click on any computer, without a server or internet. Copy it anywhere. It's
+tested in Chrome, and Edge uses the same engine.
 
 ## Controls
 | Action | Mouse / touch | Keyboard |
