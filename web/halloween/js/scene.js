@@ -82,43 +82,51 @@ export class Vault {
     bg.addColorStop(0, BG.top); bg.addColorStop(0.45, BG.mid); bg.addColorStop(1, BG.low);
     g.fillStyle = bg; g.fillRect(0, 0, 1920, 1080);
 
-    this.drawFarWall(g, f);
-    this.drawBats(g, f);
-    this.drawFarRows(g, f);
-    this.drawLamps(g, f);
-    this.drawRows(g, f);
-    this.drawStation(g, f);
+    const prof = window.__profile ? (window.__prof = window.__prof || {}) : null;
+    const step = (name, fn) => { if (!prof) return fn(); const t0 = performance.now(); fn(); prof[name] = (prof[name] || 0) + performance.now() - t0; }; // mg-allow: opt-in profiler
+    step('farWall', () => this.drawFarWall(g, f));
+    step('bats', () => this.drawBats(g, f));
+    step('farRows', () => this.drawFarRows(g, f));
+    step('lamps', () => this.drawLamps(g, f));
+    step('rows', () => this.drawRows(g, f));
+    step('station', () => this.drawStation(g, f));
     if (f.dim > 0.001) { this.screen(g); g.fillStyle = `rgba(2,6,7,${0.62 * f.dim})`; g.fillRect(0, 0, 1920, 1080); }
-    if (f.sel.on) this.drawHero(g, f);
-    this.drawSteam(g, f);
-    this.drawPipes(g, f);
-    this.drawBeacons(g, f);
-    this.drawSpeedLines(g, f);
-    this.drawParticles(g, f);
-    this.drawFinish(g, f);
+    if (f.sel.on) step('hero', () => this.drawHero(g, f));
+    step('steam', () => this.drawSteam(g, f));
+    step('pipes', () => this.drawPipes(g, f));
+    step('beacons', () => this.drawBeacons(g, f));
+    step('speed', () => this.drawSpeedLines(g, f));
+    step('particles', () => this.drawParticles(g, f));
+    step('finish', () => this.drawFinish(g, f));
   }
 
   drawFarWall(g, f) {
     this.setCam(g, f.cam, 0.22, f.shake);
-    // girders
-    for (let x = -1680; x < 3600; x += 240) {
-      const gr = g.createLinearGradient(x, 0, x + 34, 0);
-      gr.addColorStop(0, '#0c2224'); gr.addColorStop(0.5, '#123033'); gr.addColorStop(1, '#081a1b');
-      g.fillStyle = gr; g.fillRect(x, -400, 34, 1900);
-    }
-    // catwalks with tiny warm lights
-    for (const y of [150, 600, 930]) {
-      g.fillStyle = '#0d2628'; g.fillRect(-1700, y, 5400, 10);
-      g.strokeStyle = 'rgba(120,170,165,0.12)'; g.lineWidth = 2;
-      g.beginPath(); g.moveTo(-1700, y - 18); g.lineTo(3700, y - 18); g.stroke();
-      for (let x = -1640; x < 3600; x += 160) {
-        const on = 0.55 + 0.45 * Math.sin(f.t * 0.7 + x * 0.013);
-        g.fillStyle = `rgba(255,190,110,${0.5 * on})`; g.beginPath(); g.arc(x, y - 4, 2.2, 0, TAU); g.fill();
-        const gl = g.createRadialGradient(x, y - 4, 0, x, y - 4, 26);
-        gl.addColorStop(0, `rgba(255,170,90,${0.18 * on})`); gl.addColorStop(1, 'rgba(255,170,90,0)');
-        g.fillStyle = gl; g.fillRect(x - 26, y - 30, 52, 52);
+    if (!this.farWall) {
+      // static girders and catwalks, baked once at half resolution (it's far, dim and hazy)
+      const c = document.createElement('canvas'), k = 0.5; c.width = 5400 * k; c.height = 1900 * k;
+      const b = c.getContext('2d'); b.scale(k, k); b.translate(1700, 400);
+      for (let x = -1680; x < 3600; x += 240) {
+        const gr = b.createLinearGradient(x, 0, x + 34, 0);
+        gr.addColorStop(0, '#0c2224'); gr.addColorStop(0.5, '#123033'); gr.addColorStop(1, '#081a1b');
+        b.fillStyle = gr; b.fillRect(x, -400, 34, 1900);
       }
+      for (const y of [150, 600, 930]) {
+        b.fillStyle = '#0d2628'; b.fillRect(-1700, y, 5400, 10);
+        b.strokeStyle = 'rgba(120,170,165,0.12)'; b.lineWidth = 2;
+        b.beginPath(); b.moveTo(-1700, y - 18); b.lineTo(3700, y - 18); b.stroke();
+      }
+      this.farWall = c;
     }
+    g.drawImage(this.farWall, -1700, -400, 5400, 1900);
+    // catwalk lights twinkle
+    const prev = g.globalCompositeOperation;
+    g.globalCompositeOperation = 'lighter';
+    for (const y of [150, 600, 930]) for (let x = -1640; x < 3600; x += 160) {
+      const on = 0.55 + 0.45 * Math.sin(f.t * 0.7 + x * 0.013);
+      lampGlow(g, x, y - 4, [255, 170, 90], 0.22 * on, 26);
+    }
+    g.globalCompositeOperation = prev;
   }
 
   drawBats(g, f) {
@@ -143,6 +151,7 @@ export class Vault {
   }
 
   drawFarRows(g, f) {
+    if (f.quality >= 2) return;
     for (const row of FAR) {
       const c = this.setCam(g, f.cam, row.k, f.shake);
       const L = row.pitch * row.n, off = row.dir * row.speed * f.t + row.seed * 37;
@@ -189,9 +198,7 @@ export class Vault {
       g.globalCompositeOperation = prev;
       // fixture
       g.fillStyle = '#121a1b'; g.beginPath(); g.moveTo(x - 30, y - 30); g.lineTo(x + 30, y - 30); g.lineTo(x + 20, y + 6); g.lineTo(x - 20, y + 6); g.closePath(); g.fill();
-      const bulb = g.createRadialGradient(x, y + 6, 0, x, y + 6, 46);
-      bulb.addColorStop(0, `rgba(${rgb},${0.9 * flick * f.lampK})`); bulb.addColorStop(1, `rgba(${rgb},0)`);
-      g.globalCompositeOperation = 'lighter'; g.fillStyle = bulb; g.fillRect(x - 46, y - 40, 92, 92); g.globalCompositeOperation = prev;
+      g.globalCompositeOperation = 'lighter'; lampGlow(g, x, y + 6, rgb, 0.9 * flick * f.lampK, 46); g.globalCompositeOperation = prev;
     }
   }
 
@@ -218,29 +225,48 @@ export class Vault {
     const vx0 = c.x - 960 / c.z - GEO.pitch, vx1 = c.x + 960 / c.z + GEO.pitch;
     for (let r = 0; r < 3; r++) this.drawRail(g, r, vx0 - 200, vx1 + 200);
     const sw = GEO.frameW + HUNG.padX * 2, sh = HUNG.height;
-    const shutter = 0.75 / 60;
-    let usedBlur = false;
-    for (let r = 0; r < 3; r++) {
-      const off = f.rows[r], v = f.rowVel[r], blurLen = Math.abs(v) * shutter;
-      const K = clamp(Math.ceil(blurLen / 3.5), 1, 14); // ≤ 3.5 px between copies: a smooth streak, no strobing edges
-      const target = K > 1 ? this.bg2 : g;
-      if (K > 1 && !usedBlur) {
-        usedBlur = true;
-        this.bg2.setTransform(1, 0, 0, 1, 0, 0); this.bg2.clearRect(0, 0, this.blur.width, this.blur.height);
+    const drawDoors = (ctx) => {
+      for (let r = 0; r < 3; r++) {
+        const off = f.rows[r], y = GEO.rows[r].rail + HUNG.top;
+        for (let i = 0; i < GEO.perRow; i++) {
+          if (f.sel.on && r === GEO.SEL_ROW && i === f.sel.index) continue; // the hero door draws itself
+          const x = slotX(i, off) + (GEO.pitch - GEO.frameW) / 2 - HUNG.padX;
+          if (x + sw < vx0 || x > vx1) continue;
+          ctx.drawImage(this.sprites[r][i], x, y, sw, sh);
+        }
       }
-      if (K > 1) { const m = g.getTransform(); this.bg2.setTransform(m); this.bg2.globalCompositeOperation = 'lighter'; this.bg2.globalAlpha = 1 / K; }
-      const y = GEO.rows[r].rail + HUNG.top;
-      for (let i = 0; i < GEO.perRow; i++) {
-        if (f.sel.on && r === GEO.SEL_ROW && i === f.sel.index) continue; // the hero door draws itself
-        const x = slotX(i, off) + (GEO.pitch - GEO.frameW) / 2 - HUNG.padX;
-        if (x + sw < vx0 || x > vx1) continue;
-        const img = this.sprites[r][i];
-        if (K === 1) target.drawImage(img, x, y, sw, sh);
-        else for (let k = 0; k < K; k++) target.drawImage(img, x + (k / (K - 1) - 0.5) * blurLen * Math.sign(v || 1), y, sw, sh);
+    };
+    // Motion blur. All rows share the spin speed (± 2 %), so one horizontal box blur serves all three:
+    // draw the doors once into a half-res buffer, then blur by recursive doubling — each pass averages the
+    // buffer with itself shifted by half the previous shift, so 5 passes give a smooth 32-tap streak with a
+    // handful of large blits instead of hundreds of sprite copies. Centred, so direction doesn't matter.
+    const m = g.getTransform();
+    const L = Math.max(...f.rowVel.map(Math.abs)) * (0.75 / 60) * m.a * 0.5; // blur length in half-res pixels
+    if (L < 2) drawDoors(g);
+    else {
+      const A0 = this.blur, B0 = this.blurB || (this.blurB = document.createElement('canvas'));
+      // pad both sides so the streak has source pixels beyond the screen edges (no empty band at the edges)
+      const pad = 72, hw = Math.ceil(this.cv.width / 2) + pad * 2, hh = Math.ceil(this.cv.height / 2);
+      for (const c of [A0, B0]) if (c.width !== hw || c.height !== hh) { c.width = hw; c.height = hh; }
+      let A = A0, B = B0, a = A.getContext('2d'), b = B.getContext('2d');
+      a.setTransform(1, 0, 0, 1, 0, 0); a.clearRect(0, 0, hw, hh);
+      a.setTransform(m.a * 0.5, m.b * 0.5, m.c * 0.5, m.d * 0.5, m.e * 0.5 + pad, m.f * 0.5);
+      drawDoors(a);
+      a.setTransform(1, 0, 0, 1, 0, 0);
+      let s = L / 2, spread = 0, passes = 0;
+      const maxPasses = f.quality >= 2 ? 3 : f.quality >= 1 ? 4 : 6;
+      while (s >= 0.75 && passes < maxPasses) {
+        b.setTransform(1, 0, 0, 1, 0, 0); b.globalCompositeOperation = 'source-over'; b.clearRect(0, 0, hw, hh);
+        b.globalAlpha = 0.5; b.drawImage(A, 0, 0);
+        b.globalCompositeOperation = 'lighter'; b.drawImage(A, s, 0);
+        b.globalAlpha = 1; b.globalCompositeOperation = 'source-over';
+        spread += s; s /= 2; passes++;
+        [A, B, a, b] = [B, A, b, a];
       }
-      if (K > 1) { this.bg2.globalCompositeOperation = 'source-over'; this.bg2.globalAlpha = 1; }
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.drawImage(A, -2 * pad - spread, 0, hw * 2, hh * 2); // undo the pad and centre the streak (half-res → ×2)
+      g.setTransform(m);
     }
-    if (usedBlur) { const m = g.getTransform(); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(this.blur, 0, 0); g.setTransform(m); }
     // door lamps (idle red blink chasing along the rows, all off at speed)
     const prev = g.globalCompositeOperation;
     g.globalCompositeOperation = 'lighter';
@@ -563,6 +589,7 @@ export class Vault {
       this.vig = v;
     }
     g.fillStyle = this.vig; g.fillRect(0, 0, 1920, 1080);
+    if (f.quality) return;
     // grain
     g.globalAlpha = 0.06; g.globalCompositeOperation = 'overlay';
     const ox = Math.floor(hash(f.frame, 1) * 256), oy = Math.floor(hash(f.frame, 2) * 256);
@@ -573,17 +600,33 @@ export class Vault {
 
 /* helpers */
 const fract1 = (x) => x - Math.floor(x);
-function mixRgb(a, b, k) { return a.map((v, i) => Math.round(v + (b[i] - v) * k)); }
+function mixRgb(a, b, k) { return a.map((v, i) => Math.round((v + (b[i] - v) * k) / 8) * 8); } // quantised: bounded sprite cache
+// Glows and steam are pre-rendered sprites drawn with globalAlpha: no gradient objects per frame.
+const glowCache = new Map();
+function radialSprite(key, stops) {
+  let c = glowCache.get(key);
+  if (c) return c;
+  if (glowCache.size > 256) glowCache.clear(); // tinted lamps create a few colours per roll; keep the cache bounded
+  c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  for (const [o, col] of stops) gr.addColorStop(o, col);
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  glowCache.set(key, c);
+  return c;
+}
 function lampGlow(g, x, y, rgb, a, r) {
-  const gl = g.createRadialGradient(x, y, 0, x, y, r);
-  gl.addColorStop(0, `rgba(255,255,255,${a})`); gl.addColorStop(0.12, `rgba(${rgb},${a})`); gl.addColorStop(1, `rgba(${rgb},0)`);
-  g.fillStyle = gl; g.fillRect(x - r, y - r, r * 2, r * 2);
+  if (a <= 0.003) return;
+  const key = String(rgb), spr = radialSprite('lamp' + key, [[0, 'rgba(255,255,255,1)'], [0.12, `rgba(${key},1)`], [1, `rgba(${key},0)`]]);
+  const pa = g.globalAlpha; g.globalAlpha = pa * Math.min(1, a);
+  g.drawImage(spr, x - r, y - r, r * 2, r * 2);
+  g.globalAlpha = pa;
 }
 function puff(g, x, y, r, a) {
   if (a <= 0.003) return;
-  const pg = g.createRadialGradient(x, y, 0, x, y, r);
-  pg.addColorStop(0, `rgba(215,235,232,${a})`); pg.addColorStop(1, 'rgba(215,235,232,0)');
-  g.fillStyle = pg; g.fillRect(x - r, y - r, r * 2, r * 2);
+  const spr = radialSprite('puff', [[0, 'rgba(215,235,232,1)'], [1, 'rgba(215,235,232,0)']]);
+  const pa = g.globalAlpha; g.globalAlpha = pa * Math.min(1, a);
+  g.drawImage(spr, x - r, y - r, r * 2, r * 2);
+  g.globalAlpha = pa;
 }
 function drawSpaced(g, text, x, y, sp) {
   const ws = [...text].map((c) => g.measureText(c).width), total = ws.reduce((a, b) => a + b, 0) + sp * (text.length - 1);

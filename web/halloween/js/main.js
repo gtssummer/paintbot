@@ -86,7 +86,7 @@ function phaseAt(t, roll) {
 // ── frame state: a pure function of (t, S, roster view) ──
 function frameAt(t, view) {
   const roll = S.roll, ph = phaseAt(t, roll), e = roll ? roll.ev : {};
-  const f = { t, frame: Math.round(t * 60), phase: ph, live: !CAPTURE, shake: { x: 0, y: 0 }, bursts: [], sel: { on: false } };
+  const f = { t, frame: Math.round(t * 60), phase: ph, live: !CAPTURE, quality: CAPTURE ? 0 : perf.quality, shake: { x: 0, y: 0 }, bursts: [], sel: { on: false } };
   // conveyor
   if (roll && (ph === 'spin' || ph === 'locked' || ph === 'open' || ph === 'hero' || ph === 'closing')) {
     const tau = t - e.spin;
@@ -179,7 +179,7 @@ function frameAt(t, view) {
   f.shake = { x: sx * shakeScale, y: sy * shakeScale };
 
   // booth & UI
-  f.armed = !view.complete && (ph === 'idle' || ph === 'press' || ph === 'fly');
+  f.armed = !view.complete && (ph === 'idle' || ph === 'press' || ph === 'fly' || ph === 'flyback');
   f.complete = view.complete;
   f.full = view.full;
   f.hover = view.hover;
@@ -222,11 +222,21 @@ const announce = el('div', { class: 'sr-only', 'aria-live': 'assertive' }, docum
 const cursor = CAPTURE ? el('div', { class: 'cursor', html: '<svg viewBox="0 0 24 24"><path d="M3 2 L3 19 L8 14.5 L11.5 22 L14.5 20.7 L11 13.4 L17.5 13.4 Z" fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg>' }, stage) : null;
 
 let scale = 1;
+// Adaptive quality: if the machine can't hold ~45 fps (school projector laptops), step down twice:
+// 1 = no grain, coarser blur, render at ≤ 1× · 2 = also no far conveyors, shortest blur.
+const perf = { quality: 0, ema: 16.7, last: 0, changed: 0 };
 function fit() {
   const w = innerWidth, h = innerHeight;
   scale = Math.min(w / 1920, h / 1080);
   stage.style.transform = `translate(-50%, -50%) scale(${scale})`;
-  vault.resize(scale, CAPTURE ? 1 : devicePixelRatio || 1, CAPTURE ? 1 : 1.5);
+  vault.resize(scale, CAPTURE ? 1 : devicePixelRatio || 1, CAPTURE ? 1 : perf.quality ? 1 : 1.5);
+}
+function governor(ts) {
+  if (perf.last) perf.ema = perf.ema * 0.96 + Math.min(100, ts - perf.last) * 0.04;
+  perf.last = ts;
+  if (ts > 3000 && perf.ema > 24 && perf.quality < 2 && ts - perf.changed > 1500) { // ignore start-up hitches
+    perf.quality++; perf.changed = ts; perf.ema = 16.7; fit();
+  }
 }
 addEventListener('resize', fit);
 fit();
@@ -376,7 +386,8 @@ async function start() {
     window.__ready = true;
     return;
   }
-  const loop = () => {
+  const loop = (ts) => {
+    governor(ts || 0);
     const t = now();
     fire(t);
     render(t, rosterView());

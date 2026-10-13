@@ -26,9 +26,24 @@ Scores: hook 8 · motion 8 · design 8 · rhythm 8 · retention 8 · finish 7.5 
   Side pipes only appear inside the vault. The beacon now reads as a beacon. The HUD is compact, with settings in a
   drawer.
 - Motion blur now uses at most 3.5 px between accumulated copies, so the streaks are smooth instead of strobing.
+- Performance: every lamp, bulb and catwalk glow and every steam puff is drawn from a cached radial sprite with
+  `globalAlpha`. Before, the canvas created about 250 gradient objects per frame. The static far wall is baked once at
+  half resolution.
 - Live end-to-end: a press reveals the result and lights the next button 8.4 s later. The roster is saved, focus
   returns to the red button, Space starts the next roll, and a full class blocks the button.
 - 10,000 simulated classes (20–24 students) all end with 5–6 per team. No team ever goes over its limit.
+
+## Round 3 — v2: performance and blur (v1 = commit 2021a0e, kept for comparison)
+Scores: hook 8 · motion 8.5 · design 8 · rhythm 8 · retention 8 · finish 8.5 · brief 9
+- The per-layer profiler (`window.__profile = true`) showed that the spin cost was all in the motion blur: 169 ms per
+  frame in software rendering, from about 560 sprite copies.
+- New blur: the doors are drawn once into a half-res buffer padded on both sides, then box-blurred by recursive
+  doubling (5–6 passes, 32+ taps, centred). The streak is smooth with no strobing, and the spin frame drops from
+  169 to 24 ms.
+- Adaptive quality: if the live app can't hold about 45 fps after start-up, it steps down. Level 1 turns off grain,
+  uses fewer blur passes and renders at ≤ 1×. Level 2 also drops the far conveyors.
+- The button looks armed again during the fly back to the console.
+- Live end-to-end and the 10,000-class roster simulation pass again.
 
 Still below 8 / known limits:
 - Capture mode: the console's 3D-perspective layer re-rasterises with slightly different pixels depending on render
