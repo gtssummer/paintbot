@@ -1,0 +1,33 @@
+{
+  "title": "Untitled film",
+  "width": 1920,
+  "height": 1080,
+  "fps": 60,
+  "duration": 8,
+  "background": "#0d0d10",
+  "loop": false,
+  "bpm": 120,
+  "offset": 0,
+  "beatsPerBar": 4,
+  "fonts": [],
+  "formats": { "16x9": [1920, 1080], "9x16": [1080, 1920], "1x1": [1080, 1080], "4x5": [1080, 1350] },
+  "cuts": [],
+  "holds": [],
+  "music": {
+    "source": "synth",
+    "style": "pulse",
+    "key": "A",
+    "scale": "minor",
+    "seed": 1,
+    "drop": "bar:2",
+    "energy": [["bar:0", 0.45], ["bar:2", 1.0], ["bar:3:2", 0.6]]
+  },
+  "cues": [
+    { "id": "hook", "t": "beat:0", "sfx": "impact", "gain": -3 },
+    { "id": "title", "t": "beat:1", "sfx": "whoosh", "gain": -8 },
+    { "id": "bar1", "t": "bar:1", "sfx": "click", "gain": -10 },
+    { "id": "drop", "t": "bar:2", "sfx": "boom", "gain": -4 },
+    { "id": "bar3", "t": "bar:3", "sfx": "click", "gain": -10 },
+    { "id": "out", "t": "bar:3:2", "sfx": "swish", "gain": -9 }
+  ]
+}
